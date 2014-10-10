@@ -20,6 +20,7 @@ class qpid::server(
   $cluster_mechanism = 'ANONYMOUS',
   $data_dir = '/var/lib/qpidd',
   $ssl = false,
+  $ssl_create_nssdb = true,
   $ssl_require_client_authentication = 'no',
   $ssl_cert_db = "/etc/pki/qpidd",
   $ssl_cert_password_file = '/etc/pki/qpidd/password.conf',
@@ -73,9 +74,6 @@ class qpid::server(
   }
 
   if $ssl == true {
-    if $ssl_database_password == undef {
-      fail('ssl_database_passowrd must be set')
-    }
     if (( $::operatingsystem == 'Fedora' and
         is_integer($::operatingsystemrelease) and
         $::operatingsystemrelease <= 19 ) or
@@ -86,32 +84,37 @@ class qpid::server(
         before => Nssdb::Create['qpidd'],
       }
     }
-    nssdb::create {"qpidd":
-      owner_id => 'qpidd',
-      group_id => 'qpidd',
-      password => $ssl_database_password,
-      cacert => $ssl_ca,
-      require => Package[$package_name]
-    }
-
-    if $manage_service {
-      Nssdb::Create['qpidd'] ~> Service[$service_name]
-    }
-
-    if $freeipa == true {
-      certmonger::request_ipa_cert {"qpidd":
-        seclib => "nss",
-        nickname => "broker",
-        principal => "qpid/${fqdn}",
+    if $ssl_create_nssdb == true {
+      if $ssl_database_password == undef {
+        fail('ssl_database_passowrd must be set')
       }
-    } elsif $ssl_cert != undef and $ssl_key != undef {
-      nssdb::add_cert_and_key{"qpidd":
-        nickname=> 'broker',
-        cert => $ssl_cert,
-        key  => $ssl_key,
+      nssdb::create {"qpidd":
+        owner_id => 'qpidd',
+        group_id => 'qpidd',
+        password => $ssl_database_password,
+        cacert => $ssl_ca,
+        require => Package[$package_name]
       }
-    } else {
-      fail('Missing cert or key')
+
+      if $manage_service {
+        Nssdb::Create['qpidd'] ~> Service[$service_name]
+      }
+
+      if $freeipa == true {
+        certmonger::request_ipa_cert {"qpidd":
+          seclib => "nss",
+          nickname => "broker",
+          principal => "qpid/${fqdn}",
+        }
+      } elsif $ssl_cert != undef and $ssl_key != undef {
+        nssdb::add_cert_and_key{"qpidd":
+          nickname=> 'broker',
+          cert => $ssl_cert,
+          key  => $ssl_key,
+        }
+      } else {
+        fail('Missing cert or key')
+      }
     }
   }
 
