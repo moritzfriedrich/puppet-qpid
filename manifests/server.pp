@@ -20,6 +20,10 @@ class qpid::server(
   $cluster_mechanism = 'ANONYMOUS',
   $data_dir = '/var/lib/qpidd',
   $ssl = false,
+  $ssl_require_client_authentication = 'no',
+  $ssl_cert_db = "/etc/pki/qpidd",
+  $ssl_cert_password_file = '/etc/pki/qpidd/password.conf',
+  $ssl_cert_name = 'broker',
   $ssl_package_name = 'qpid-cpp-server-ssl',
   $ssl_package_ensure = present,
   $ssl_port = '5671',
@@ -36,6 +40,7 @@ class qpid::server(
   validate_re($worker_threads, '\d+')
   validate_re($connection_backlog, '\d+')
   validate_re($auth, '^(yes$|no$)')
+  validate_re($ssl_require_client_authentication, '^(yes$|no$)')
 
   package { $package_name:
     ensure => $package_ensure
